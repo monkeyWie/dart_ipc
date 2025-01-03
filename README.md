@@ -1,5 +1,9 @@
 # dart_ipc
 
+[![Pub Version](https://img.shields.io/pub/v/dart_ipc?color=blue&logo=dart)](https://pub.dev/packages/dart_ipc)
+[![Pub Points](https://img.shields.io/pub/points/dart_ipc?color=blue&logo=dart)](https://pub.dev/packages/dart_ipc)
+[![License](https://img.shields.io/github/license/monkeyWie/flutter_treeview)](https://github.com/monkeyWie/flutter_treeview/blob/main/LICENSE)
+
 A cross-platform Inter-Process Communication (IPC) library for Dart that provides efficient communication between processes using native platform mechanisms.
 
 ## Features
