@@ -4,10 +4,9 @@ A cross-platform Inter-Process Communication (IPC) library for Dart that provide
 
 ## Features
 
-- **Cross-platform support**: Works on Windows, Linux, macOS and Android
-- **Native performance**: Uses `named pipe` on Windows and `Unix domain` sockets on Unix systems
-- **Simple API**: Easy-to-use interface for sending and receiving messages
-- **Type-safe communication**: Supports structured data serialization
+- **Cross-platform**: Works on Windows, Linux, macOS and Android.
+- **Native performance**: Uses `named pipe` on Windows and `Unix domain` sockets on Unix systems.
+- **Simple API**: Compatible with `socket` API.
 
 ## Installation
 
