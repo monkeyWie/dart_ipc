@@ -57,7 +57,7 @@ class _MyAppState extends State<MyApp> {
                       print(socket);
                       socket.listen((data) {
                         print(utf8.decode(data));
-                        socket.add('Hello from Server'.codeUnits);
+                        socket.add(utf8.encode('Hello from Server'));
                       }, onDone: () {
                         print("Server Done");
                       }, onError: (e) {

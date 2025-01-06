@@ -9,7 +9,7 @@ A cross-platform Inter-Process Communication (IPC) library for Dart that provide
 ## Features
 
 - **Cross-platform**: Works on Windows, Linux, macOS and Android.
-- **Native performance**: Uses `named pipe` on Windows and `Unix domain` sockets on Unix systems.
+- **Native performance**: Uses `Named pipe` on Windows and `Unix domain socket` on Unix systems.
 - **Simple API**: Compatible with `socket` API.
 
 ## Installation
@@ -31,7 +31,7 @@ await for (final socket in serverSocket) {
   print(socket);
   socket.listen((data) {
     print(utf8.decode(data));
-    socket.add('Hello from Server'.codeUnits);
+    socket.add(utf8.encode('Hello from Server'));
   }, onDone: () {
     print("Server Done");
   }, onError: (e) {
@@ -201,12 +201,12 @@ void main() async {
 
 ## Platform Support
 
-| Platform | Implementation |
-| -------- | -------------- |
-| Windows  | Named pipes    |
-| Linux    | Unix sockets   |
-| macOS    | Unix sockets   |
-| Android  | Unix sockets   |
+| Platform | Implementation     |
+| -------- |--------------------|
+| Windows  | Named pipe         |
+| Linux    | Unix domain socket |
+| macOS    | Unix domain socket |
+| Android  | Unix domain socket |
 
 ## License
 
