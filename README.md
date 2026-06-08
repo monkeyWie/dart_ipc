@@ -8,7 +8,7 @@ A cross-platform Inter-Process Communication (IPC) library for Dart that provide
 
 ## Features
 
-- **Cross-platform**: Works on Windows, Linux, macOS and Android.
+- **Cross-platform**: Works on Windows, Linux, macOS, iOS and Android.
 - **Native performance**: Uses `Named pipe` on Windows and `Unix domain socket` on Unix systems.
 - **Pure Dart package**: Windows named pipes are implemented with Dart FFI and overlapped I/O through `package:win32`; no Flutter C++ plugin layer is required.
 - **Simple API**: Compatible with `socket` API.
@@ -202,12 +202,31 @@ void main() async {
 
 ## Platform Support
 
-| Platform | Implementation     |
-| -------- |--------------------|
+| Platform | Implementation |
+| -------- | -------------- |
 | Windows  | Named pipe via Dart FFI and `win32` |
 | Linux    | Unix domain socket |
 | macOS    | Unix domain socket |
+| iOS      | Unix domain socket |
 | Android  | Unix domain socket |
+
+### Unix Socket Paths
+
+Unix domain socket paths are stored in a small fixed-size OS field. On Linux the
+limit is usually 108 bytes, and on Apple platforms it is usually 104 bytes. Long
+sandbox paths, such as macOS/iOS container cache directories, can exceed that
+limit.
+
+Prefer a short file name under `Directory.systemTemp`:
+
+```dart
+final path = '${Directory.systemTemp.path}/dart_ipc_$pid.sock';
+```
+
+If the temp directory itself is still too long in a sandbox, change
+`Directory.current` to a writable temp directory and pass only the short relative
+file name. Relative paths are resolved from `Directory.current` before calling
+`bind()` or `connect()`.
 
 ## License
 

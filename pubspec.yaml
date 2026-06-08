@@ -1,6 +1,6 @@
 name: dart_ipc
 description: "A cross-platform Inter-Process Communication (IPC) library for Dart that provides efficient communication between processes using native platform mechanisms."
-version: 1.0.1
+version: 2.0.0
 homepage: https://github.com/monkeyWie/dart_ipc
 
 environment:
@@ -16,6 +16,7 @@ dev_dependencies:
 
 platforms:
   android:
+  ios:
   linux:
   macos:
   windows:
