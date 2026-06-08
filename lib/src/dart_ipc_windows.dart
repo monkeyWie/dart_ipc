@@ -19,31 +19,35 @@ typedef _WaitOrTimerCallbackNative = Void Function(Pointer<Void>, Uint8);
 
 final _kernel32 = DynamicLibrary.open('kernel32.dll');
 
-final _waitCallback =
-    NativeCallable<_WaitOrTimerCallbackNative>.listener(_onWaitComplete)
-      ..keepIsolateAlive = false;
+final _waitCallback = NativeCallable<_WaitOrTimerCallbackNative>.listener(
+  _onWaitComplete,
+)..keepIsolateAlive = false;
 
-final _registerWaitForSingleObject = _kernel32.lookupFunction<
-    Int32 Function(
-      Pointer<Pointer<Void>>,
-      Pointer<Void>,
-      Pointer<NativeFunction<_WaitOrTimerCallbackNative>>,
-      Pointer<Void>,
-      Uint32,
-      Uint32,
-    ),
-    int Function(
-      Pointer<Pointer<Void>>,
-      Pointer<Void>,
-      Pointer<NativeFunction<_WaitOrTimerCallbackNative>>,
-      Pointer<Void>,
-      int,
-      int,
-    )>('RegisterWaitForSingleObject');
+final _registerWaitForSingleObject = _kernel32
+    .lookupFunction<
+      Int32 Function(
+        Pointer<Pointer<Void>>,
+        Pointer<Void>,
+        Pointer<NativeFunction<_WaitOrTimerCallbackNative>>,
+        Pointer<Void>,
+        Uint32,
+        Uint32,
+      ),
+      int Function(
+        Pointer<Pointer<Void>>,
+        Pointer<Void>,
+        Pointer<NativeFunction<_WaitOrTimerCallbackNative>>,
+        Pointer<Void>,
+        int,
+        int,
+      )
+    >('RegisterWaitForSingleObject');
 
-final _unregisterWaitEx = _kernel32.lookupFunction<
-    Int32 Function(Pointer<Void>, Pointer<Void>),
-    int Function(Pointer<Void>, Pointer<Void>)>('UnregisterWaitEx');
+final _unregisterWaitEx = _kernel32
+    .lookupFunction<
+      Int32 Function(Pointer<Void>, Pointer<Void>),
+      int Function(Pointer<Void>, Pointer<Void>)
+    >('UnregisterWaitEx');
 
 final _pendingOperations = <int, _PendingOperation>{};
 int _nextOperationId = 1;
@@ -65,8 +69,10 @@ class DartIpcWindows extends DartIpcPlatform {
   @override
   Future<ServerSocket> bind(String path) async {
     final clientSocketController = StreamController<Socket>();
-    final serverSocket =
-        Win32NamedPipeServerSocket(path, clientSocketController);
+    final serverSocket = Win32NamedPipeServerSocket(
+      path,
+      clientSocketController,
+    );
 
     () async {
       while (!serverSocket.isClosed) {
@@ -247,7 +253,9 @@ Future<Uint8List> _readPipe(int pipeHandlePtr) {
   );
 
   if (result.value) {
-    return Future.value(operation.completeRead(operation.bytesTransferred.value));
+    return Future.value(
+      operation.completeRead(operation.bytesTransferred.value),
+    );
   }
 
   if (result.error == ERROR_IO_PENDING) {
@@ -281,7 +289,9 @@ Future<int> _writePipe(int pipeHandlePtr, Uint8List data) {
   );
 
   if (result.value) {
-    return Future.value(operation.completeWrite(operation.bytesTransferred.value));
+    return Future.value(
+      operation.completeWrite(operation.bytesTransferred.value),
+    );
   }
 
   if (result.error == ERROR_IO_PENDING) {
@@ -324,11 +334,10 @@ class _PendingOperation {
     this.pipeHandlePtr, {
     int? bufferSize,
     this.closedErrorsAreEof = true,
-  })
-      : id = _nextOperationId++,
-        overlapped = calloc<OVERLAPPED>(),
-        bytesTransferred = calloc<Uint32>(),
-        buffer = bufferSize == null ? null : calloc<Uint8>(bufferSize) {
+  }) : id = _nextOperationId++,
+       overlapped = calloc<OVERLAPPED>(),
+       bytesTransferred = calloc<Uint32>(),
+       buffer = bufferSize == null ? null : calloc<Uint8>(bufferSize) {
     _activeOperationCount++;
     _waitCallback.keepIsolateAlive = true;
     final eventResult = CreateEvent(null, true, false, null);
@@ -337,7 +346,7 @@ class _PendingOperation {
       throw Win32NamedPipeException('CreateEvent', eventResult.error.code);
     }
     eventHandle = eventResult.value;
-    overlapped.ref.hEvent = eventHandle;
+    overlapped.ref.hEvent = eventResult.value;
   }
 
   final int id;

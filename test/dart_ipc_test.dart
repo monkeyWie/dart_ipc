@@ -104,7 +104,8 @@ const _timeout = Duration(seconds: 10);
 var _pathCounter = 0;
 
 String _testPath() {
-  final id = '${DateTime.now().microsecondsSinceEpoch}_${pid}_${_pathCounter++}';
+  final id =
+      '${DateTime.now().microsecondsSinceEpoch}_${pid}_${_pathCounter++}';
 
   if (Platform.isWindows) {
     return r'\\.\pipe\dart_ipc_test_' + id;

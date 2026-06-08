@@ -6,12 +6,16 @@ class DartIpcUnix extends DartIpcPlatform {
   @override
   Future<ServerSocket> bind(String path) {
     return ServerSocket.bind(
-        InternetAddress(path, type: InternetAddressType.unix), 0);
+      InternetAddress(path, type: InternetAddressType.unix),
+      0,
+    );
   }
 
   @override
   Future<Socket> connect(String path) {
     return Socket.connect(
-        InternetAddress(path, type: InternetAddressType.unix), 0);
+      InternetAddress(path, type: InternetAddressType.unix),
+      0,
+    );
   }
 }
