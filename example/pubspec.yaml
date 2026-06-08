@@ -1,11 +1,12 @@
 name: dart_ipc_example
-description: "Demonstrates how to use the dart_ipc plugin."
+description: "Demonstrates how to use the dart_ipc package."
+version: 1.0.0+1
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 environment:
-  sdk: ^3.5.0
+  sdk: ^3.10.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -24,8 +25,6 @@ dependencies:
     # The example app is bundled with the plugin so we use a path dependency on
     # the parent directory to use the current plugin's version.
     path: ../
-  path: ^1.8.3
-  path_provider: ^2.1.1
   json_rpc_2: ^3.0.3
   web_socket_channel: ^3.0.1
 

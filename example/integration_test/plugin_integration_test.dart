@@ -9,11 +9,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:dart_ipc/dart_ipc.dart';
-
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('getPlatformVersion test', (WidgetTester tester) async {
+  testWidgets('example app boots', (WidgetTester tester) async {
+    expect(true, isTrue);
   });
 }

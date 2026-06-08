@@ -10,7 +10,9 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   bool _isClosed = false;
 
   factory Win32NamedPipeServerSocket(
-      String path, StreamController<Socket> controller) {
+    String path,
+    StreamController<Socket> controller,
+  ) {
     return Win32NamedPipeServerSocket._(path, controller);
   }
 
@@ -30,11 +32,14 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   }
 
   @override
-  Stream<Socket> asBroadcastStream(
-      {void Function(StreamSubscription<Socket> subscription)? onListen,
-      void Function(StreamSubscription<Socket> subscription)? onCancel}) {
-    return _controller.stream
-        .asBroadcastStream(onListen: onListen, onCancel: onCancel);
+  Stream<Socket> asBroadcastStream({
+    void Function(StreamSubscription<Socket> subscription)? onListen,
+    void Function(StreamSubscription<Socket> subscription)? onCancel,
+  }) {
+    return _controller.stream.asBroadcastStream(
+      onListen: onListen,
+      onCancel: onCancel,
+    );
   }
 
   @override
@@ -55,7 +60,10 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   @override
   Future<ServerSocket> close() async {
     _isClosed = true;
-    await _controller.close();
+    await DartIpcPlatform.instance.closeServer(_path);
+    if (!_controller.isClosed) {
+      await _controller.close();
+    }
     for (var pipeHandlePtr in _pipeHandlePtrArr) {
       await DartIpcPlatform.instance.close(pipeHandlePtr);
     }
@@ -68,8 +76,9 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   }
 
   @override
-  Stream<Socket> distinct(
-      [bool Function(Socket previous, Socket next)? equals]) {
+  Stream<Socket> distinct([
+    bool Function(Socket previous, Socket next)? equals,
+  ]) {
     return _controller.stream.distinct(equals);
   }
 
@@ -97,14 +106,18 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   Future<Socket> get first => _controller.stream.first;
 
   @override
-  Future<Socket> firstWhere(bool Function(Socket element) test,
-      {Socket Function()? orElse}) {
+  Future<Socket> firstWhere(
+    bool Function(Socket element) test, {
+    Socket Function()? orElse,
+  }) {
     return _controller.stream.firstWhere(test, orElse: orElse);
   }
 
   @override
   Future<S> fold<S>(
-      S initialValue, S Function(S previous, Socket element) combine) {
+    S initialValue,
+    S Function(S previous, Socket element) combine,
+  ) {
     return _controller.stream.fold(initialValue, combine);
   }
 
@@ -114,8 +127,10 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   }
 
   @override
-  Stream<Socket> handleError(Function onError,
-      {bool Function(dynamic error)? test}) {
+  Stream<Socket> handleError(
+    Function onError, {
+    bool Function(dynamic error)? test,
+  }) {
     return _controller.stream.handleError(onError, test: test);
   }
 
@@ -134,8 +149,10 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   Future<Socket> get last => _controller.stream.last;
 
   @override
-  Future<Socket> lastWhere(bool Function(Socket element) test,
-      {Socket Function()? orElse}) {
+  Future<Socket> lastWhere(
+    bool Function(Socket element) test, {
+    Socket Function()? orElse,
+  }) {
     return _controller.stream.lastWhere(test, orElse: orElse);
   }
 
@@ -143,12 +160,21 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   Future<int> get length => _controller.stream.length;
 
   @override
-  StreamSubscription<Socket> listen(void Function(Socket event)? onData,
-      {Function? onError, void Function()? onDone, bool? cancelOnError}) {
-    return _controller.stream.listen((event) {
-      _pipeHandlePtrArr.add(event.port);
-      onData?.call(event);
-    }, onError: onError, onDone: onDone, cancelOnError: cancelOnError);
+  StreamSubscription<Socket> listen(
+    void Function(Socket event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return _controller.stream.listen(
+      (event) {
+        _pipeHandlePtrArr.add(event.port);
+        onData?.call(event);
+      },
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
   }
 
   @override
@@ -166,7 +192,8 @@ class Win32NamedPipeServerSocket implements ServerSocket {
 
   @override
   Future<Socket> reduce(
-      Socket Function(Socket previous, Socket element) combine) {
+    Socket Function(Socket previous, Socket element) combine,
+  ) {
     return _controller.stream.reduce(combine);
   }
 
@@ -174,8 +201,10 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   Future<Socket> get single => _controller.stream.single;
 
   @override
-  Future<Socket> singleWhere(bool Function(Socket element) test,
-      {Socket Function()? orElse}) {
+  Future<Socket> singleWhere(
+    bool Function(Socket element) test, {
+    Socket Function()? orElse,
+  }) {
     return _controller.stream.singleWhere(test, orElse: orElse);
   }
 
@@ -200,8 +229,10 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   }
 
   @override
-  Stream<Socket> timeout(Duration timeLimit,
-      {void Function(EventSink<Socket> sink)? onTimeout}) {
+  Stream<Socket> timeout(
+    Duration timeLimit, {
+    void Function(EventSink<Socket> sink)? onTimeout,
+  }) {
     return _controller.stream.timeout(timeLimit, onTimeout: onTimeout);
   }
 

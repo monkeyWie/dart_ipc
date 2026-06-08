@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
-import 'package:flutter/services.dart';
+import 'dart:typed_data';
 
 import 'dart_ipc_platform_interface.dart';
 
@@ -14,8 +13,10 @@ class Win32NamedPipeStreamConsumer implements StreamConsumer<List<int>> {
   @override
   Future addStream(Stream<List<int>> stream) async {
     await for (final data in stream) {
-      await DartIpcPlatform.instance
-          .write(_pipeHandlePtr, Uint8List.fromList(data));
+      await DartIpcPlatform.instance.write(
+        _pipeHandlePtr,
+        Uint8List.fromList(data),
+      );
     }
     return Future.value();
   }
@@ -42,23 +43,28 @@ class Win32NamedPipeSocket implements Socket {
             break;
           }
           streamController.add(data);
-        } catch (e) {
-          // Pipe is closed
-          if (e is PlatformException && ["109"].contains(e.code)) {
-            break;
-          }
-          rethrow;
+        } catch (error, stackTrace) {
+          streamController.addError(error, stackTrace);
+          break;
         }
       }
       streamController.close();
     }();
 
-    return Win32NamedPipeSocket._(path, pipeHandlePtr, streamController.stream,
-        IOSink(Win32NamedPipeStreamConsumer(pipeHandlePtr)));
+    return Win32NamedPipeSocket._(
+      path,
+      pipeHandlePtr,
+      streamController.stream,
+      IOSink(Win32NamedPipeStreamConsumer(pipeHandlePtr)),
+    );
   }
 
   Win32NamedPipeSocket._(
-      this._path, this._pipeHandlePtr, this._stream, this._sink);
+    this._path,
+    this._pipeHandlePtr,
+    this._stream,
+    this._sink,
+  );
 
   String get path => _path;
 
@@ -90,9 +96,10 @@ class Win32NamedPipeSocket implements Socket {
   }
 
   @override
-  Stream<Uint8List> asBroadcastStream(
-      {void Function(StreamSubscription<Uint8List> subscription)? onListen,
-      void Function(StreamSubscription<Uint8List> subscription)? onCancel}) {
+  Stream<Uint8List> asBroadcastStream({
+    void Function(StreamSubscription<Uint8List> subscription)? onListen,
+    void Function(StreamSubscription<Uint8List> subscription)? onCancel,
+  }) {
     return _stream.asBroadcastStream(onListen: onListen, onCancel: onCancel);
   }
 
@@ -126,8 +133,9 @@ class Win32NamedPipeSocket implements Socket {
   }
 
   @override
-  Stream<Uint8List> distinct(
-      [bool Function(Uint8List previous, Uint8List next)? equals]) {
+  Stream<Uint8List> distinct([
+    bool Function(Uint8List previous, Uint8List next)? equals,
+  ]) {
     return _stream.distinct(equals);
   }
 
@@ -158,8 +166,10 @@ class Win32NamedPipeSocket implements Socket {
   Future<Uint8List> get first => _stream.first;
 
   @override
-  Future<Uint8List> firstWhere(bool Function(Uint8List element) test,
-      {Uint8List Function()? orElse}) {
+  Future<Uint8List> firstWhere(
+    bool Function(Uint8List element) test, {
+    Uint8List Function()? orElse,
+  }) {
     return _stream.firstWhere(test, orElse: orElse);
   }
 
@@ -170,7 +180,9 @@ class Win32NamedPipeSocket implements Socket {
 
   @override
   Future<S> fold<S>(
-      S initialValue, S Function(S previous, Uint8List element) combine) {
+    S initialValue,
+    S Function(S previous, Uint8List element) combine,
+  ) {
     return _stream.fold(initialValue, combine);
   }
 
@@ -186,8 +198,10 @@ class Win32NamedPipeSocket implements Socket {
   }
 
   @override
-  Stream<Uint8List> handleError(Function onError,
-      {bool Function(dynamic error)? test}) {
+  Stream<Uint8List> handleError(
+    Function onError, {
+    bool Function(dynamic error)? test,
+  }) {
     return _stream.handleError(onError, test: test);
   }
 
@@ -206,8 +220,10 @@ class Win32NamedPipeSocket implements Socket {
   Future<Uint8List> get last => _stream.last;
 
   @override
-  Future<Uint8List> lastWhere(bool Function(Uint8List element) test,
-      {Uint8List Function()? orElse}) {
+  Future<Uint8List> lastWhere(
+    bool Function(Uint8List element) test, {
+    Uint8List Function()? orElse,
+  }) {
     return _stream.lastWhere(test, orElse: orElse);
   }
 
@@ -215,8 +231,12 @@ class Win32NamedPipeSocket implements Socket {
   Future<int> get length => _stream.length;
 
   @override
-  StreamSubscription<Uint8List> listen(void Function(Uint8List event)? onData,
-      {Function? onError, void Function()? onDone, bool? cancelOnError}) {
+  StreamSubscription<Uint8List> listen(
+    void Function(Uint8List event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
     return _stream.listen(
       onData,
       onError: onError,
@@ -240,7 +260,8 @@ class Win32NamedPipeSocket implements Socket {
 
   @override
   Future<Uint8List> reduce(
-      Uint8List Function(Uint8List previous, Uint8List element) combine) {
+    Uint8List Function(Uint8List previous, Uint8List element) combine,
+  ) {
     return _stream.reduce(combine);
   }
 
@@ -265,8 +286,10 @@ class Win32NamedPipeSocket implements Socket {
   Future<Uint8List> get single => _stream.single;
 
   @override
-  Future<Uint8List> singleWhere(bool Function(Uint8List element) test,
-      {Uint8List Function()? orElse}) {
+  Future<Uint8List> singleWhere(
+    bool Function(Uint8List element) test, {
+    Uint8List Function()? orElse,
+  }) {
     return _stream.singleWhere(test, orElse: orElse);
   }
 
@@ -291,8 +314,10 @@ class Win32NamedPipeSocket implements Socket {
   }
 
   @override
-  Stream<Uint8List> timeout(Duration timeLimit,
-      {void Function(EventSink<Uint8List> sink)? onTimeout}) {
+  Stream<Uint8List> timeout(
+    Duration timeLimit, {
+    void Function(EventSink<Uint8List> sink)? onTimeout,
+  }) {
     return _stream.timeout(timeLimit, onTimeout: onTimeout);
   }
 
