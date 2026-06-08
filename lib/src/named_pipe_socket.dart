@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
-import 'package:flutter/services.dart';
+import 'dart:typed_data';
 
 import 'dart_ipc_platform_interface.dart';
 
@@ -42,12 +41,9 @@ class Win32NamedPipeSocket implements Socket {
             break;
           }
           streamController.add(data);
-        } catch (e) {
-          // Pipe is closed
-          if (e is PlatformException && ["109"].contains(e.code)) {
-            break;
-          }
-          rethrow;
+        } catch (error, stackTrace) {
+          streamController.addError(error, stackTrace);
+          break;
         }
       }
       streamController.close();

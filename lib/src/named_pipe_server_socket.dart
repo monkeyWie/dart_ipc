@@ -55,7 +55,10 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   @override
   Future<ServerSocket> close() async {
     _isClosed = true;
-    await _controller.close();
+    await DartIpcPlatform.instance.closeServer(_path);
+    if (!_controller.isClosed) {
+      await _controller.close();
+    }
     for (var pipeHandlePtr in _pipeHandlePtrArr) {
       await DartIpcPlatform.instance.close(pipeHandlePtr);
     }

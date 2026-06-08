@@ -1,6 +1,6 @@
 # dart_ipc_example
 
-Demonstrates how to use the dart_ipc plugin.
+Demonstrates how to use the dart_ipc package.
 
 ## Getting Started
 

@@ -1,45 +1,30 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'dart_ipc_unix.dart';
+import 'dart_ipc_windows.dart';
 
-import 'dart_ipc_method_channel.dart';
+abstract class DartIpcPlatform {
+  static DartIpcPlatform? _instance;
 
-abstract class DartIpcPlatform extends PlatformInterface {
-  /// Constructs a DartIpcPlatform.
-  DartIpcPlatform() : super(token: _token);
+  static DartIpcPlatform get instance {
+    return _instance ??= Platform.isWindows ? DartIpcWindows() : DartIpcUnix();
+  }
 
-  static final Object _token = Object();
-
-  static DartIpcPlatform _instance = MethodChannelDartIpc();
-
-  /// The default instance of [DartIpcPlatform] to use.
-  ///
-  /// Defaults to [MethodChannelDartIpc].
-  static DartIpcPlatform get instance => _instance;
-
-  /// Platform-specific implementations should set this with their own
-  /// platform-specific class that extends [DartIpcPlatform] when
-  /// they register themselves.
   static set instance(DartIpcPlatform instance) {
-    PlatformInterface.verifyToken(instance, _token);
     _instance = instance;
   }
 
-  Future<ServerSocket> bind(String path) {
-    throw UnimplementedError('bind() has not been implemented.');
-  }
+  Future<ServerSocket> bind(String path);
 
-  Future<Socket> connect(String path) {
-    throw UnimplementedError('connect() has not been implemented.');
-  }
+  Future<Socket> connect(String path);
 
   Future<int> accept(String path) {
     throw UnimplementedError('accept() has not been implemented.');
   }
 
   Future<Uint8List> read(int pipeHandlePtr) {
-    throw UnimplementedError('writeFile() has not been implemented.');
+    throw UnimplementedError('read() has not been implemented.');
   }
 
   Future<int> write(int pipeHandlePtr, Uint8List data) {
@@ -47,6 +32,8 @@ abstract class DartIpcPlatform extends PlatformInterface {
   }
 
   Future<void> close(int pipeHandlePtr) {
-    throw UnimplementedError('closeClient() has not been implemented.');
+    throw UnimplementedError('close() has not been implemented.');
   }
+
+  Future<void> closeServer(String path) async {}
 }
