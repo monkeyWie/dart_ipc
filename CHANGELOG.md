@@ -1,3 +1,8 @@
+## 2.0.2
+
+* Isolate native IPC implementations from web compilation.
+* Provide unsupported-operation stubs when the package is imported on web.
+
 ## 2.0.1
 
 * Fix Windows named pipe handle ownership and idempotent socket/server shutdown.

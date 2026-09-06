@@ -1,2 +1,1 @@
-export 'src/dart_ipc.dart';
-export 'src/dart_ipc_unix.dart';
+export 'src/dart_ipc_stub.dart' if (dart.library.io) 'src/dart_ipc_io.dart';
