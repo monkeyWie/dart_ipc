@@ -14,6 +14,7 @@ const _bufferSize = 4096;
 const _pipeTimeoutMs = 5000;
 const _connectRetryDelay = Duration(milliseconds: 20);
 const _wtExecuteOnlyOnce = 0x00000008;
+final _invalidHandleValue = Pointer<Void>.fromAddress(-1);
 
 typedef _WaitOrTimerCallbackNative = Void Function(Pointer<Void>, Uint8);
 
@@ -82,7 +83,14 @@ class DartIpcWindows extends DartIpcPlatform {
             await close(pipeHandlePtr);
             break;
           }
-          clientSocketController.add(Win32NamedPipeSocket(path, pipeHandlePtr));
+          late final Win32NamedPipeSocket socket;
+          socket = Win32NamedPipeSocket(
+            path,
+            pipeHandlePtr,
+            onClosed: () => serverSocket.removeSocket(socket),
+          );
+          serverSocket.addSocket(socket);
+          clientSocketController.add(socket);
         } on Win32NamedPipeException catch (error, stackTrace) {
           if (serverSocket.isClosed ||
               error.code == ERROR_INVALID_HANDLE.code) {
@@ -114,8 +122,10 @@ class DartIpcWindows extends DartIpcPlatform {
         final pipeHandlePtr = _connectPipe(path);
         return Win32NamedPipeSocket(path, pipeHandlePtr);
       } on Win32NamedPipeException catch (error) {
-        if (error.code != ERROR_PIPE_BUSY.code ||
-            DateTime.now().isAfter(deadline)) {
+        final retryable =
+            error.code == ERROR_PIPE_BUSY.code ||
+            error.code == ERROR_FILE_NOT_FOUND.code;
+        if (!retryable || DateTime.now().isAfter(deadline)) {
           rethrow;
         }
         await Future<void>.delayed(_connectRetryDelay);
@@ -133,13 +143,14 @@ class DartIpcWindows extends DartIpcPlatform {
         await _connectServerPipe(pipeHandlePtr);
         return pipeHandlePtr;
       } on Win32NamedPipeException catch (error) {
-        await close(pipeHandlePtr);
-        if (error.code == ERROR_NO_DATA.code) {
+        await _closePendingAccept(path, pipeHandlePtr);
+        if (error.code == ERROR_NO_DATA.code ||
+            error.code == ERROR_SUCCESS.code) {
           continue;
         }
         rethrow;
       } catch (_) {
-        await close(pipeHandlePtr);
+        await _closePendingAccept(path, pipeHandlePtr);
         rethrow;
       } finally {
         final handles = _pendingAcceptHandles[path];
@@ -173,6 +184,15 @@ class DartIpcWindows extends DartIpcPlatform {
 
     await Future.wait(handles.map(close));
   }
+
+  Future<void> _closePendingAccept(String path, int pipeHandlePtr) async {
+    final handles = _pendingAcceptHandles[path];
+    if (handles == null || !handles.remove(pipeHandlePtr)) return;
+    if (handles.isEmpty) {
+      _pendingAcceptHandles.remove(path);
+    }
+    await close(pipeHandlePtr);
+  }
 }
 
 int _createServerPipe(String path) {
@@ -204,7 +224,7 @@ Future<void> _connectServerPipe(int pipeHandlePtr) {
 
   if (result.value || result.error == ERROR_PIPE_CONNECTED) {
     operation.complete(0);
-  } else if (result.error == ERROR_IO_PENDING) {
+  } else if (_isPendingOverlappedResult(result.error.code)) {
     operation.register();
   } else {
     final error = result.error.code;
@@ -258,7 +278,7 @@ Future<Uint8List> _readPipe(int pipeHandlePtr) {
     );
   }
 
-  if (result.error == ERROR_IO_PENDING) {
+  if (_isPendingOverlappedResult(result.error.code)) {
     operation.register();
     return operation.completer.future.then((bytesTransferred) {
       return operation.completeRead(bytesTransferred);
@@ -294,7 +314,7 @@ Future<int> _writePipe(int pipeHandlePtr, Uint8List data) {
     );
   }
 
-  if (result.error == ERROR_IO_PENDING) {
+  if (_isPendingOverlappedResult(result.error.code)) {
     operation.register();
     return operation.completer.future.then(operation.completeWrite);
   }
@@ -322,6 +342,14 @@ bool _isPipeClosedError(int code) {
   return code == ERROR_BROKEN_PIPE.code ||
       code == ERROR_NO_DATA.code ||
       code == ERROR_INVALID_HANDLE.code;
+}
+
+bool _isPendingOverlappedResult(int code) {
+  // Some win32/Dart VM combinations occasionally lose ERROR_IO_PENDING
+  // between the native call and GetLastError, leaving ERROR_SUCCESS instead.
+  // For these overlapped calls, a false result without another error still
+  // represents the pending operation whose event must be observed.
+  return code == ERROR_IO_PENDING.code || code == ERROR_SUCCESS.code;
 }
 
 void _onWaitComplete(Pointer<Void> context, int timerOrWaitFired) {
@@ -376,7 +404,10 @@ class _PendingOperation {
     if (registered == FALSE) {
       _pendingOperations.remove(id);
       final error = GetLastError().code;
-      CancelIoEx(HANDLE(Pointer.fromAddress(pipeHandlePtr)), overlapped);
+      final pipeHandle = HANDLE(Pointer.fromAddress(pipeHandlePtr));
+      CancelIoEx(pipeHandle, overlapped);
+      // The OVERLAPPED memory must remain valid until cancellation completes.
+      GetOverlappedResult(pipeHandle, overlapped, bytesTransferred, true);
       dispose();
       throw Win32NamedPipeException('RegisterWaitForSingleObject', error);
     }
@@ -445,7 +476,7 @@ class _PendingOperation {
     if (registeredWaitHandle != null) {
       final handle = registeredWaitHandle.value;
       if (handle.address != 0) {
-        _unregisterWaitEx(handle, nullptr);
+        _unregisterWaitEx(handle, _invalidHandleValue);
       }
       calloc.free(registeredWaitHandle);
       waitHandle = null;

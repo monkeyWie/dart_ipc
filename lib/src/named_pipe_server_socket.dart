@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'dart_ipc_platform_interface.dart';
+import 'named_pipe_socket.dart';
 
 class Win32NamedPipeServerSocket implements ServerSocket {
   final String _path;
   final StreamController<Socket> _controller;
-  final List<int> _pipeHandlePtrArr = [];
+  final Set<Win32NamedPipeSocket> _sockets = {};
   bool _isClosed = false;
+  Future<ServerSocket>? _closeFuture;
 
   factory Win32NamedPipeServerSocket(
     String path,
@@ -21,6 +23,18 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   String get path => _path;
 
   bool get isClosed => _isClosed;
+
+  void addSocket(Win32NamedPipeSocket socket) {
+    if (_isClosed) {
+      unawaited(socket.close());
+      return;
+    }
+    _sockets.add(socket);
+  }
+
+  void removeSocket(Win32NamedPipeSocket socket) {
+    _sockets.remove(socket);
+  }
 
   @override
   InternetAddress get address =>
@@ -58,15 +72,20 @@ class Win32NamedPipeServerSocket implements ServerSocket {
   }
 
   @override
-  Future<ServerSocket> close() async {
+  Future<ServerSocket> close() {
+    return _closeFuture ??= _close();
+  }
+
+  Future<ServerSocket> _close() async {
     _isClosed = true;
     await DartIpcPlatform.instance.closeServer(_path);
     if (!_controller.isClosed) {
       await _controller.close();
     }
-    for (var pipeHandlePtr in _pipeHandlePtrArr) {
-      await DartIpcPlatform.instance.close(pipeHandlePtr);
-    }
+    await Future.wait(
+      _sockets.toList(growable: false).map((socket) => socket.close()),
+    );
+    _sockets.clear();
     return this;
   }
 
@@ -167,10 +186,7 @@ class Win32NamedPipeServerSocket implements ServerSocket {
     bool? cancelOnError,
   }) {
     return _controller.stream.listen(
-      (event) {
-        _pipeHandlePtrArr.add(event.port);
-        onData?.call(event);
-      },
+      onData,
       onError: onError,
       onDone: onDone,
       cancelOnError: cancelOnError,

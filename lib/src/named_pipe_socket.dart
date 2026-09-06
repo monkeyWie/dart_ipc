@@ -5,16 +5,16 @@ import 'dart:typed_data';
 
 import 'dart_ipc_platform_interface.dart';
 
-class Win32NamedPipeStreamConsumer implements StreamConsumer<List<int>> {
-  final int _pipeHandlePtr;
+class _Win32NamedPipeStreamConsumer implements StreamConsumer<List<int>> {
+  final _Win32NamedPipeHandle _handle;
 
-  Win32NamedPipeStreamConsumer(this._pipeHandlePtr);
+  _Win32NamedPipeStreamConsumer(this._handle);
 
   @override
   Future addStream(Stream<List<int>> stream) async {
     await for (final data in stream) {
       await DartIpcPlatform.instance.write(
-        _pipeHandlePtr,
+        _handle.value,
         Uint8List.fromList(data),
       );
     }
@@ -23,47 +23,82 @@ class Win32NamedPipeStreamConsumer implements StreamConsumer<List<int>> {
 
   @override
   Future close() {
-    return DartIpcPlatform.instance.close(_pipeHandlePtr);
+    return _handle.close();
+  }
+}
+
+class _Win32NamedPipeHandle {
+  _Win32NamedPipeHandle(this.value);
+
+  final int value;
+  Future<void>? _closeFuture;
+
+  bool get isClosed => _closeFuture != null;
+
+  Future<void> close() {
+    return _closeFuture ??= DartIpcPlatform.instance.close(value);
   }
 }
 
 class Win32NamedPipeSocket implements Socket {
   final String _path;
-  final int _pipeHandlePtr;
+  final _Win32NamedPipeHandle _handle;
   final Stream<Uint8List> _stream;
   final IOSink _sink;
+  final FutureOr<void> Function()? _onClosed;
+  Future<void> _pendingSinkOperation = Future.value();
+  Future<void>? _closeFuture;
+  bool _isClosing = false;
 
-  factory Win32NamedPipeSocket(String path, int pipeHandlePtr) {
+  factory Win32NamedPipeSocket(
+    String path,
+    int pipeHandlePtr, {
+    FutureOr<void> Function()? onClosed,
+  }) {
     final streamController = StreamController<Uint8List>();
-    () async {
-      while (true) {
-        try {
-          final data = await DartIpcPlatform.instance.read(pipeHandlePtr);
+    final handle = _Win32NamedPipeHandle(pipeHandlePtr);
+    late final Win32NamedPipeSocket socket;
+    socket = Win32NamedPipeSocket._(
+      path,
+      handle,
+      streamController.stream,
+      IOSink(_Win32NamedPipeStreamConsumer(handle)),
+      onClosed,
+    );
+    unawaited(() async {
+      try {
+        while (!handle.isClosed) {
+          final data = await DartIpcPlatform.instance.read(handle.value);
           if (data.isEmpty) {
             break;
           }
           streamController.add(data);
-        } catch (error, stackTrace) {
+        }
+      } catch (error, stackTrace) {
+        if (!handle.isClosed && !streamController.isClosed) {
           streamController.addError(error, stackTrace);
-          break;
+        }
+      } finally {
+        if (!streamController.isClosed) {
+          await streamController.close();
+        }
+        await handle.close();
+        try {
+          await socket.close();
+        } catch (_) {
+          // The peer may disconnect while buffered writes are still draining.
         }
       }
-      streamController.close();
-    }();
-
-    return Win32NamedPipeSocket._(
-      path,
-      pipeHandlePtr,
-      streamController.stream,
-      IOSink(Win32NamedPipeStreamConsumer(pipeHandlePtr)),
-    );
+    }());
+    return socket;
   }
 
   Win32NamedPipeSocket._(
     this._path,
-    this._pipeHandlePtr,
+    this._handle,
     this._stream,
     this._sink,
+    this._onClosed,
   );
 
   String get path => _path;
@@ -73,17 +108,22 @@ class Win32NamedPipeSocket implements Socket {
 
   @override
   void add(List<int> data) {
+    _ensureWritable();
     _sink.add(data);
   }
 
   @override
   void addError(Object error, [StackTrace? stackTrace]) {
+    _ensureWritable();
     _sink.addError(error, stackTrace);
   }
 
   @override
   Future addStream(Stream<List<int>> stream) {
-    return _sink.addStream(stream);
+    _ensureWritable();
+    final operation = _sink.addStream(stream);
+    _trackSinkOperation(operation);
+    return operation;
   }
 
   @override
@@ -117,9 +157,34 @@ class Win32NamedPipeSocket implements Socket {
   Stream<R> cast<R>() => _stream.cast<R>();
 
   @override
-  Future close() async {
-    await _sink.close();
-    return Future.value();
+  Future<void> close() {
+    final closeFuture = _closeFuture;
+    if (closeFuture != null) return closeFuture;
+    _isClosing = true;
+    return _closeFuture = _close();
+  }
+
+  Future<void> _close() async {
+    try {
+      await _pendingSinkOperation;
+      await _sink.close();
+    } finally {
+      try {
+        await _handle.close();
+      } finally {
+        await _onClosed?.call();
+      }
+    }
+  }
+
+  void _ensureWritable() {
+    if (_isClosing) {
+      throw StateError('Socket is closed');
+    }
+  }
+
+  void _trackSinkOperation(Future operation) {
+    _pendingSinkOperation = operation.then<void>((_) {}, onError: (_, _) {});
   }
 
   @override
@@ -129,7 +194,8 @@ class Win32NamedPipeSocket implements Socket {
 
   @override
   void destroy() {
-    close();
+    unawaited(_handle.close());
+    unawaited(close().catchError((_) {}));
   }
 
   @override
@@ -175,7 +241,10 @@ class Win32NamedPipeSocket implements Socket {
 
   @override
   Future flush() async {
-    return _sink.flush();
+    _ensureWritable();
+    final operation = _sink.flush();
+    _trackSinkOperation(operation);
+    return operation;
   }
 
   @override
@@ -256,7 +325,7 @@ class Win32NamedPipeSocket implements Socket {
   }
 
   @override
-  int get port => _pipeHandlePtr; // 命名管道没有端口概念
+  int get port => _handle.value; // 命名管道没有端口概念
 
   @override
   Future<Uint8List> reduce(
@@ -343,21 +412,25 @@ class Win32NamedPipeSocket implements Socket {
 
   @override
   void write(Object? object) {
+    _ensureWritable();
     _sink.write(object);
   }
 
   @override
   void writeAll(Iterable objects, [String separator = ""]) {
+    _ensureWritable();
     _sink.writeAll(objects, separator);
   }
 
   @override
   void writeCharCode(int charCode) {
+    _ensureWritable();
     _sink.writeCharCode(charCode);
   }
 
   @override
   void writeln([Object? object = ""]) {
+    _ensureWritable();
     _sink.writeln(object);
   }
 }
